@@ -11,6 +11,8 @@ Klondike and Spider solitaire for Omarchy, built with C++ and Qt Quick. Klondike
 
 ## Play
 
+![A Spider deal in the Baize series](share/screenshots/baize-spider.png)
+
 Click a card, then where it goes, or drag it. A double click sends a card to the best place it can go. Once nothing is hidden and the stock is spent, the rest of the cards go home by themselves. The game saves after every move.
 
 **New game** asks which game to deal: Klondike, or Spider in one, two, or four suits. In Spider, suited runs in rank order move together, a row is dealt to every column at once (never onto an empty column), and a finished king-to-ace run in one suit leaves for a home of its own; eight of them win the game.
