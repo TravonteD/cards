@@ -221,8 +221,17 @@ void Backend::save() {
   if (m_savePath == ":memory:" || m_saveBlocked || !ownsSave()) return;
   QJsonArray moves;
   for (const Solitaire::Move &move : m_game->moves()) moves.append(QJsonArray{move.from, move.to, move.count});
-  QJsonObject data{{"version", 1}, {"game", m_game->kind()}, {"suits", m_game->suits()}, {"seed", qint64(m_game->seed())},
-                   {"moves", moves}, {"elapsed", m_elapsed}, {"series", m_series}};
+  // Klondike saves stay the version and shape they have always had, so an
+  // older build opens them still; Spider names its game and suits on a
+  // version of its own, since an older build must reject what it cannot
+  // play rather than deal it as Klondike.
+  const int version = m_game->kind() == 1 ? 2 : 1;
+  QJsonObject data{{"version", version}, {"seed", qint64(m_game->seed())}, {"moves", moves},
+                   {"elapsed", m_elapsed}, {"series", m_series}};
+  if (version == 2) {
+    data["game"] = m_game->kind();
+    data["suits"] = m_game->suits();
+  }
   QDir().mkpath(QFileInfo(m_savePath).absolutePath());
   QSaveFile file(m_savePath);
   file.setDirectWriteFallback(false);

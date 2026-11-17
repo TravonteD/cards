@@ -1250,6 +1250,8 @@ private slots:
             QCOMPARE(readCatalog(dir.filePath("game.json"))["elapsed"].toInt(), 0);
         }
         QVERIFY(readCatalog(dir.filePath("game.json"))["elapsed"].toInt() >= 1);
+        // A Klondike save is the save there has always been, version and all.
+        QCOMPARE(readCatalog(dir.filePath("game.json"))["version"].toInt(), 1);
         Backend restored(dir.filePath("game.json"));
         QVERIFY(restored.elapsed() >= 1);
         QCOMPARE(layout(restored.game()), state);
@@ -1288,6 +1290,8 @@ private slots:
         QCOMPARE(layout(restored.game()), state);
         QCOMPARE(restored.moves(), 2);
         QVERIFY(restored.saveHealthy());
+        // A spider save names its game and suits on a version of its own.
+        QCOMPARE(readCatalog(dir.filePath("game.json"))["version"].toInt(), 2);
         // The won panel's Deal again asks for newGame() with nothing named,
         // and the game in play is dealt again: spider, with its suit count.
         restored.newGame();
@@ -1423,19 +1427,25 @@ private slots:
             QCOMPARE(layout(backend.game()), layout(played));
         }
         // A save naming spider with a suit count the window never deals is
-        // damaged, and the damaged-save path is the one it has always been:
-        // the file stays as it is until a new game is asked for.
-        const QByteArray damaged = QByteArray(R"({"version":1,"game":1,"suits":3,"seed":9,"moves":[]})");
-        QVERIFY(write(path, damaged));
+        // damaged, and so is one whose version names no game at all: an older
+        // build would open either as the wrong game. The damaged-save path is
+        // the one it has always been: the file stays as it is until a new
+        // game is asked for.
+        for (const QByteArray &damaged : {QByteArray(R"({"version":1,"game":1,"suits":4,"seed":9,"moves":[]})"),
+                                          QByteArray(R"({"version":2,"game":1,"suits":3,"seed":9,"moves":[]})")}) {
+            QVERIFY(write(path, damaged));
+            Backend broken(path);
+            QVERIFY(!broken.error().isEmpty());
+            QVERIFY(!broken.saveHealthy());
+            QCOMPARE(broken.moves(), 0);
+            broken.setSeries(2);
+            broken.draw();
+            QCOMPARE(contents(path), damaged);
+            broken.dismissError();
+            QVERIFY(broken.error().isEmpty());
+            QVERIFY(!broken.saveHealthy());
+        }
         Backend broken(path);
-        QVERIFY(!broken.error().isEmpty());
-        QVERIFY(!broken.saveHealthy());
-        QCOMPARE(broken.moves(), 0);
-        broken.setSeries(2);
-        broken.draw();
-        QCOMPARE(contents(path), damaged);
-        broken.dismissError();
-        QVERIFY(broken.error().isEmpty());
         QVERIFY(!broken.saveHealthy());
         broken.newGame(9);
         QVERIFY(broken.saveHealthy());

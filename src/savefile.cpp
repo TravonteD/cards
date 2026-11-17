@@ -21,13 +21,17 @@ Result read(const QString &path, std::unique_ptr<Solitaire::Game> *game, QJsonOb
   QJsonParseError error;
   const QJsonObject saved = QJsonDocument::fromJson(file.readAll(), &error).object();
   const qint64 seed = saved["seed"].toInteger();
-  if (error.error != QJsonParseError::NoError || saved["version"].toInt() != 1 || !saved["moves"].isArray()
-      || saved["moves"].toArray().size() > MaxMoves || seed <= 0 || seed > 0xffffffffll)
+  const int version = saved["version"].toInt();
+  const int kind = version == 2 ? saved["game"].toInt(-1) : 0;
+  const int suits = saved["suits"].toInt(0);
+  // Version 1 is the Klondike save there has always been, and names no game;
+  // version 2 names spider and its suit count, so an older build rejects the
+  // whole save rather than dealing it with the wrong rules.
+  if (error.error != QJsonParseError::NoError || (version != 1 && version != 2) || !saved["moves"].isArray()
+      || saved["moves"].toArray().size() > MaxMoves || seed <= 0 || seed > 0xffffffffll
+      || (version == 1 && (saved.contains("game") || saved.contains("suits"))) || (version == 2 && kind != 1)
+      || (kind == 1 && suits != 1 && suits != 2 && suits != 4))
     return Result::Damaged;
-  const int kind = saved["game"].toInt(0);
-  const int suits = saved["suits"].toInt(4);
-  // Only the games the window deals, and only Spider's suit counts, read back.
-  if ((kind != 0 && kind != 1) || (kind == 1 && suits != 1 && suits != 2 && suits != 4)) return Result::Damaged;
   // The game the save names, dealt from its seed, walking the moves back on.
   std::unique_ptr<Solitaire::Game> replayed;
   if (kind == 1) replayed = std::make_unique<Spider::Game>(quint32(seed), suits);
