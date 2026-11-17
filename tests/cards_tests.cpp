@@ -2045,6 +2045,17 @@ private slots:
         QTRY_VERIFY(!prompt->property("visible").toBool());
         QCOMPARE(layout(backend.game()), dealt);
         QCOMPARE(backend.mode(), 1);
+        // The keyboard cursor outlives the game it was moving around, and is
+        // brought back onto the table the next time it moves.
+        auto *table = window->findChild<QQuickItem *>("table");
+        QVERIFY(table);
+        for (int step = 0; step < 6; ++step) QTest::keyClick(window, Qt::Key_Right);
+        QVERIFY(table->property("cursorPile").toInt() >= 13);
+        QTest::keyClick(window, Qt::Key_N);
+        QTRY_VERIFY(prompt->property("opened").toBool());
+        QVERIFY(dealFromPrompt(window, "dealKlondike"));
+        QTest::keyClick(window, Qt::Key_Down);
+        QCOMPARE(table->property("cursorPile").toInt(), 12);
     }
 
     void thePromptAnswersTheArrows() {

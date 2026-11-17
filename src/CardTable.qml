@@ -137,6 +137,9 @@ Item {
 
   function topIndex(pile) { return backend.piles[pile].count - 1 }
   function clampCursor() {
+    // The cursor outlives a game switch, so it is brought back onto the
+    // table before anything reads where it points.
+    cursorPile = Math.max(0, Math.min(backend.pileCount - 1, cursorPile))
     const info = backend.piles[cursorPile]
     if (info.count === 0) cursorIndex = -1
     // On a top-row pile only the last card can be marked; in a column, the
@@ -146,6 +149,7 @@ Item {
   }
   function navigate(dx, dy) {
     keyboard = true
+    clampCursor()
     if (backend.mode === 0) {
       // Klondike's two rows: the stock, waste and foundations on top, the
       // seven columns below. Walking off a row stops at its end.
