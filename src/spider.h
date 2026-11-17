@@ -47,15 +47,19 @@ public:
   // What is left still needs picking: nothing plays itself out here.
   bool finishable() const override { return false; }
   bool finishStep() override { return false; }
+  // Moves every completed run it finds to the first free home pile, each as
+  // its own recorded move, until a pass finds none left. A step of its own,
+  // so the moves recorded before it replay without doing it twice.
+  void settle() override;
+  // Its own move, plus every finished run the deal can hold, since one
+  // action can finish more than one of them.
+  int actionRoom() const override { return 1 + cardsTotal() / 13; }
   std::optional<Move> hint() const override;
 
 private:
   // The lowest index from which the cards to the top of `from` are one run:
   // all face up, one suit, and in rank order, or -1 when the top is face down.
   int runStart(int from) const;
-  // Moves every completed run it finds to the first free home pile, each as
-  // its own recorded move, until a pass finds none left.
-  void settle();
   std::uint32_t m_seed;
   int m_suits;
   std::vector<Card> m_piles[Piles];

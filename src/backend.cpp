@@ -107,7 +107,10 @@ void Backend::finishStep() {
 }
 
 bool Backend::move(int from, int to, int count) {
-  if (won() || moves() >= SaveFile::MaxMoves || !m_game->play(from, to, count)) return false;
+  // The cap leaves room for what one action records whole, so a game near it
+  // can still be read back.
+  if (won() || moves() + m_game->actionRoom() > SaveFile::MaxMoves || !m_game->play(from, to, count)) return false;
+  m_game->settle();
   played();
   return true;
 }
@@ -149,8 +152,11 @@ bool Backend::drop(int pile, int index, int to) {
 }
 
 void Backend::draw() {
-  if (won() || m_finish.isActive() || moves() >= SaveFile::MaxMoves) return;
-  if (m_game->drawStock()) played();
+  if (won() || m_finish.isActive() || moves() + m_game->actionRoom() > SaveFile::MaxMoves) return;
+  if (m_game->drawStock()) {
+    m_game->settle();
+    played();
+  }
 }
 
 void Backend::cancelSelection() {

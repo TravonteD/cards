@@ -257,16 +257,17 @@ QQuickItem *findItem(QQuickItem *root, const QString &name) {
     return nullptr;
 }
 
-// One step of plain driving for a one-suit Spider deal: the largest run that
+// The move a plain driver would make on a Spider table: the largest run that
 // can leave a face-down card under itself goes onto a card one rank higher,
 // and once the stock is out any run is walked on, a move never going straight
-// back to where it just came from. When nothing can be played, the stock
-// deals the next row. False when the game has nothing left to offer.
-bool spiderStep(Spider::Game &game) {
-    int bestScore = 0, from = -1, index = -1, to = -1;
+// back to where it just came from. True with the move in `from`, `index` and
+// `to`; false when nothing can be played and the stock should deal a row.
+bool spiderChoice(const Solitaire::Game &game, int *from, int *index, int *to) {
+    int bestScore = 0;
+    *from = *index = *to = -1;
     const Solitaire::Move last = game.moves().empty() ? Solitaire::Move{} : game.moves().back();
-    const bool endgame = game.pile(Spider::Stock).empty();
-    for (int source = Spider::Tableau; source < Spider::Piles; ++source) {
+    const bool endgame = game.pile(Solitaire::Stock).empty();
+    for (int source = game.tableauStart(); source < game.pileCount(); ++source) {
         const auto &pile = game.pile(source);
         for (int at = int(pile.size()) - 1; at >= 0; --at) {
             if (!pile[at].up) break;
@@ -274,7 +275,7 @@ bool spiderStep(Spider::Game &game) {
             if (at > 0 && pile[at - 1].up && pile[at - 1].suit() == pile[at].suit()
                 && pile[at - 1].rank() == pile[at].rank() + 1)
                 continue;
-            for (int destination = Spider::Tableau; destination < Spider::Piles; ++destination) {
+            for (int destination = game.tableauStart(); destination < game.pileCount(); ++destination) {
                 if (destination == source || !game.canMove(source, at, destination)) continue;
                 const auto &target = game.pile(destination);
                 if (source == last.to && destination == last.from) continue;
@@ -283,12 +284,25 @@ bool spiderStep(Spider::Game &game) {
                 if (!endgame && (at == 0 || target.empty())) continue;
                 if (endgame && target.empty() && at == 0) continue;
                 const int score = int(pile.size()) - at + (!target.empty() && target.back().suit() == pile[at].suit() ? 1000 : 0);
-                if (score > bestScore) { bestScore = score; from = source; index = at; to = destination; }
+                if (score > bestScore) { bestScore = score; *from = source; *index = at; *to = destination; }
             }
         }
     }
-    if (from < 0) return game.drawStock();
-    return game.play(from, to, int(game.pile(from).size()) - index);
+    return *from >= 0;
+}
+
+// One step of plain driving: the choice above played through the game's own
+// hands, and the settling that hands a finished run its home after it. False
+// when the game has nothing left to offer.
+bool spiderStep(Spider::Game &game) {
+    int from, index, to;
+    if (spiderChoice(game, &from, &index, &to)) {
+        if (!game.play(from, to, int(game.pile(from).size()) - index)) return false;
+    } else if (!game.drawStock()) {
+        return false;
+    }
+    game.settle();
+    return true;
 }
 
 // Clicks a named game in the open new-game prompt and waits for it to be gone.
@@ -918,6 +932,7 @@ private slots:
         // Dealt the move that finished it again, the run leaves again, and the
         // game carries on until a second run has left for the next home pile.
         QVERIFY(game.play(completed.from, completed.to, completed.count));
+        game.settle();
         QCOMPARE(game.home(), 13);
         QVERIFY(game.pile(left.from).empty() || game.pile(left.from).back().up);
         for (int step = 0; step < 20000 && game.home() < 26 && !game.won(); ++step) QVERIFY(spiderStep(game));
@@ -1280,6 +1295,33 @@ private slots:
         QCOMPARE(restored.suits(), 2);
         QCOMPARE(restored.moves(), 0);
         QCOMPARE(restored.stock(), 50);
+    }
+
+    void spiderSavesAfterARunLeaves() {
+        // A finished run is the whole point of Spider, so the save written
+        // just after one leaves has to read back as the table it was: the
+        // replay walks the recorded moves one by one, without settling them
+        // a second time, and lands exactly where the game stood.
+        QTemporaryDir dir;
+        QString state;
+        int played = 0;
+        {
+            Backend game(dir.filePath("game.json"));
+            game.newGame(1, 1, 1);
+            for (int step = 0; step < 5000 && game.home() < 13; ++step) {
+                int from, index, to;
+                if (spiderChoice(game.game(), &from, &index, &to)) QVERIFY(game.drop(from, index, to));
+                else game.draw();
+            }
+            QVERIFY(game.home() >= 13);
+            state = layout(game.game());
+            played = game.moves();
+        }
+        Backend restored(dir.filePath("game.json"));
+        QVERIFY2(restored.error().isEmpty(), qPrintable(restored.error()));
+        QCOMPARE(restored.mode(), 1);
+        QCOMPARE(layout(restored.game()), state);
+        QCOMPARE(restored.moves(), played);
     }
 
     void saveHasOneOwner() {

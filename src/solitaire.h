@@ -69,6 +69,15 @@ public:
   // Whether what is left can only go one way now, and one step of playing it out.
   virtual bool finishable() const = 0;
   virtual bool finishStep() = 0;
+  // A game's own finishing touches on the move just played — the finished
+  // runs Spider deals home — as a step of its own, so a recorded move can be
+  // replayed without them and the history stays the whole truth of how the
+  // table came to be. Games without such touches do nothing here.
+  virtual void settle() {}
+  // The most moves one action can put on the record: its own move, plus what
+  // the game does about it afterwards. The save's move cap leaves this much
+  // room, so an action near the cap is recorded whole or not at all.
+  virtual int actionRoom() const { return 1; }
   // The next move worth making, or nothing when there is none to be found.
   virtual std::optional<Move> hint() const = 0;
 };

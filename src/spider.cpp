@@ -85,9 +85,9 @@ bool Game::play(int from, int to, int count) {
       stock.pop_back();
     }
   } else if (to >= Home && to < Tableau) {
-    // A finished run, king down to ace in one suit, leaves for its home pile
-    // whole, and the card it uncovers is turned up as part of the move.
-    if (from < Tableau || from >= Piles || count != 13) return false;
+    // A finished run, king down to ace in one suit, leaves for an empty home
+    // pile whole, and the card it uncovers is turned up as part of the move.
+    if (from < Tableau || from >= Piles || count != 13 || !m_piles[to].empty()) return false;
     auto &source = m_piles[from];
     if (int(source.size()) < 13) return false;
     const int base = int(source.size()) - 13;
@@ -112,11 +112,6 @@ bool Game::play(int from, int to, int count) {
     }
   }
   m_moves.push_back(move);
-  // A draw or an ordinary move can finish a run on any column, so completed
-  // runs leave for their home piles by themselves after one. A column can
-  // hold two, one under the other, so the checking goes on until a full pass
-  // finds none; a run that just left is already home and needs no looking after.
-  if (to < Home || to >= Tableau) settle();
   return true;
 }
 
