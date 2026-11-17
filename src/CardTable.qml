@@ -184,9 +184,10 @@ Item {
           --cursorIndex
         } else if (cursorPile >= backend.tableauStart) {
           // Up from a column goes to the top-row pile over it: the stock for
-          // column 0, otherwise the home pile sitting on that column.
+          // column 0, the home sitting on that column for the rest, and for
+          // the tenth column, which has no home of its own, the home beside it.
           const column = cursorPile - backend.tableauStart
-          cursorPile = column === 0 ? 0 : column
+          cursorPile = column === 0 ? 0 : Math.min(column, backend.tableauStart - 1)
           cursorIndex = topIndex(cursorPile)
         }
       } else if (cursorPile < backend.tableauStart) {

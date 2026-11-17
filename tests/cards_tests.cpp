@@ -2049,7 +2049,13 @@ private slots:
         // brought back onto the table the next time it moves.
         auto *table = window->findChild<QQuickItem *>("table");
         QVERIFY(table);
-        for (int step = 0; step < 6; ++step) QTest::keyClick(window, Qt::Key_Right);
+        // Up from the tenth column, which has no home above it, rests on the
+        // home beside it rather than landing on the first column.
+        for (int step = 0; step < 9; ++step) QTest::keyClick(window, Qt::Key_Right);
+        QCOMPARE(table->property("cursorPile").toInt(), 18);
+        QTest::keyClick(window, Qt::Key_Up);
+        QCOMPARE(table->property("cursorPile").toInt(), 8);
+        QTest::keyClick(window, Qt::Key_Down);
         QVERIFY(table->property("cursorPile").toInt() >= 13);
         QTest::keyClick(window, Qt::Key_N);
         QTRY_VERIFY(prompt->property("opened").toBool());
