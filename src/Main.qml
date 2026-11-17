@@ -120,7 +120,8 @@ ApplicationWindow {
     background: Rectangle {
       radius: theme.radius
       color: control.down ? Qt.alpha(window.tint,.26) : control.lit ? Qt.alpha(window.tint,control.hovered ? .22 : .13) : control.hovered ? Qt.alpha(theme.foreground,.09) : "transparent"
-      border.color: control.lit ? Qt.alpha(window.tint,.5) : window.line
+      // A button that takes the keyboard shows where the arrows rest.
+      border.color: control.lit || control.activeFocus ? Qt.alpha(window.tint,.5) : window.line
     }
     contentItem: Text {
       text: control.text
@@ -464,7 +465,9 @@ ApplicationWindow {
     }
   }
   // The new-game prompt: one button per game and number of suits the backend
-  // deals, each starting a game from a fresh deal.
+  // deals, each starting a game from a fresh deal. The arrows walk the four
+  // choices round, and Enter deals the one they rest on, so the prompt is
+  // driven from the keyboard like the table is.
   Dialog {
     id: newGameDialog
     objectName: "newGame"
@@ -473,6 +476,14 @@ ApplicationWindow {
     modal: true
     focus: true
     title: qsTr("Deal a new game")
+    readonly property var choices: [klondikeChoice, spider1Choice, spider2Choice, spider4Choice]
+    // The prompt opens with the game in play under the arrows, so Enter
+    // re-deals it, as Deal again does.
+    onOpened: choices[backend.mode === 0 ? 0 : backend.suits === 1 ? 1 : backend.suits === 2 ? 2 : 3].forceActiveFocus()
+    function stepTo(step) {
+      const at = choices.indexOf(window.activeFocusItem)
+      choices[(at + step + choices.length) % choices.length].forceActiveFocus()
+    }
     footer: DialogButtonBox {
       LayoutMirroring.enabled: Qt.application.layoutDirection === Qt.RightToLeft
       LayoutMirroring.childrenInherit: true
@@ -485,6 +496,13 @@ ApplicationWindow {
       LayoutMirroring.enabled: Qt.application.layoutDirection === Qt.RightToLeft
       LayoutMirroring.childrenInherit: true
       spacing: 0
+      // Any of the four arrows walks, so the hand does not have to be lifted
+      // to choose; backwards or forwards, the walk goes round and round.
+      Keys.onPressed: (event) => {
+        if (event.key !== Qt.Key_Up && event.key !== Qt.Key_Down && event.key !== Qt.Key_Left && event.key !== Qt.Key_Right) return
+        newGameDialog.stepTo(event.key === Qt.Key_Up || event.key === Qt.Key_Left ? -1 : 1)
+        event.accepted = true
+      }
       Label {
         text: qsTr("Pick a game to deal.")
         color: window.muted
@@ -492,10 +510,10 @@ ApplicationWindow {
         Layout.fillWidth: true
         Layout.bottomMargin: 14
       }
-      FlatButton { objectName: "dealKlondike"; text: qsTr("Klondike"); Layout.fillWidth: true; onClicked: { newGameDialog.close(); backend.newGame(0, 0, 4) } }
-      FlatButton { objectName: "dealSpider1"; text: qsTr("Spider, one suit"); Layout.fillWidth: true; onClicked: { newGameDialog.close(); backend.newGame(0, 1, 1) } }
-      FlatButton { objectName: "dealSpider2"; text: qsTr("Spider, two suits"); Layout.fillWidth: true; onClicked: { newGameDialog.close(); backend.newGame(0, 1, 2) } }
-      FlatButton { objectName: "dealSpider4"; text: qsTr("Spider, four suits"); Layout.fillWidth: true; onClicked: { newGameDialog.close(); backend.newGame(0, 1, 4) } }
+      FlatButton { id: klondikeChoice; objectName: "dealKlondike"; text: qsTr("Klondike"); focusPolicy: Qt.StrongFocus; Layout.fillWidth: true; onClicked: { newGameDialog.close(); backend.newGame(0, 0, 4) } }
+      FlatButton { id: spider1Choice; objectName: "dealSpider1"; text: qsTr("Spider, one suit"); focusPolicy: Qt.StrongFocus; Layout.fillWidth: true; onClicked: { newGameDialog.close(); backend.newGame(0, 1, 1) } }
+      FlatButton { id: spider2Choice; objectName: "dealSpider2"; text: qsTr("Spider, two suits"); focusPolicy: Qt.StrongFocus; Layout.fillWidth: true; onClicked: { newGameDialog.close(); backend.newGame(0, 1, 2) } }
+      FlatButton { id: spider4Choice; objectName: "dealSpider4"; text: qsTr("Spider, four suits"); focusPolicy: Qt.StrongFocus; Layout.fillWidth: true; onClicked: { newGameDialog.close(); backend.newGame(0, 1, 4) } }
     }
   }
   Shortcut { sequence: "?"; enabled: !window.busy; onActivated: helpDialog.open() }

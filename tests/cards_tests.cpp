@@ -1995,6 +1995,37 @@ private slots:
         QCOMPARE(backend.mode(), 1);
     }
 
+    void thePromptAnswersTheArrows() {
+        QTemporaryDir dir;
+        Stage stage(dir.path());
+        QVERIFY2(stage.window, qPrintable(stage.warnings.join('\n')));
+        Backend &backend = stage.backend;
+        QQuickWindow *window = stage.window;
+        auto *button = window->findChild<QQuickItem *>("newGameButton");
+        QVERIFY(button);
+        QTest::mouseClick(window, Qt::LeftButton, {}, button->mapToScene(QPointF(button->width() / 2, button->height() / 2)).toPoint());
+        auto *prompt = window->findChild<QObject *>("newGame");
+        QVERIFY(prompt);
+        QTRY_VERIFY(prompt->property("opened").toBool());
+        // The prompt opens with the game in play under the arrows.
+        auto focused = [&] { return qobject_cast<QQuickItem *>(window->activeFocusItem()); };
+        QCOMPARE(focused()->objectName(), QStringLiteral("dealKlondike"));
+        // The arrows walk the choices round and round, either way.
+        QTest::keyClick(window, Qt::Key_Down);
+        QCOMPARE(focused()->objectName(), QStringLiteral("dealSpider1"));
+        QTest::keyClick(window, Qt::Key_Up);
+        QCOMPARE(focused()->objectName(), QStringLiteral("dealKlondike"));
+        QTest::keyClick(window, Qt::Key_Up);
+        QCOMPARE(focused()->objectName(), QStringLiteral("dealSpider4"));
+        // Enter deals the one the arrows rest on.
+        QTest::keyClick(window, Qt::Key_Return);
+        QTRY_VERIFY(!prompt->property("visible").toBool());
+        QCOMPARE(backend.mode(), 1);
+        QCOMPARE(backend.suits(), 4);
+        QCOMPARE(backend.cardsTotal(), 104);
+        QCOMPARE(backend.moves(), 0);
+    }
+
     void windowMirrorsForArabic() {
         QTemporaryDir dir;
         QVERIFY(write(dir.path() + "/language", "ar\n"));
