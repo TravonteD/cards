@@ -15,6 +15,8 @@
 
 #include "backend.h"
 #include <QJsonArray>
+#include "klondike.h"
+#include "spider.h"
 #include "theme.h"
 #include "translator.h"
 
@@ -152,9 +154,9 @@ QMap<QString, bool> translatables(const QString &folder, QStringList *problems) 
 using namespace Klondike;
 
 // Every pile, card by card, with the hidden ones in lower case.
-QString layout(const Game &game) {
+QString layout(const Solitaire::Game &game) {
     QString text;
-    for (int pile = 0; pile < Piles; ++pile) {
+    for (int pile = 0; pile < game.pileCount(); ++pile) {
         for (const Card &card : game.pile(pile)) text += QString::number(card.id) + (card.up ? "U " : "d ");
         text += "| ";
     }
